@@ -144,7 +144,7 @@ function buildFallbackModel() {
     const r_f = D_f - r_w;
 
     const shapePoints = [];
-    const N = 40;
+    const N = 80;
 
     for (let i = 0; i < 3; i++) {
         const theta_c = (i * 2 * Math.PI) / 3;
