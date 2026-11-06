@@ -1,5 +1,26 @@
 const container = document.getElementById('canvas-container');
-const colorPicker = document.getElementById('color-picker');
+const colorModal = document.getElementById('color-modal');
+const hexInput = document.getElementById('hex-input');
+const nativePicker = document.getElementById('native-picker');
+const paletteGrid = document.getElementById('palette-grid');
+
+const paletteColors = [
+    '#2196F3', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
+    '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#F44336', '#E91E63',
+    '#9C27B0', '#673AB7', '#3F51B5', '#607D8B', '#212121', '#FFFFFF'
+];
+
+paletteColors.forEach((hex) => {
+    const swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = 'palette-swatch';
+    swatch.style.backgroundColor = hex;
+    swatch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyColor(hex);
+    });
+    paletteGrid.appendChild(swatch);
+});
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -46,7 +67,7 @@ const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xe8e8e8, 0.4);
 scene.add(hemisphereLight);
 
 const shadowPlaneGeo = new THREE.PlaneGeometry(50, 50);
-const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.14 });
 const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
 shadowPlane.position.z = -2.5;
 shadowPlane.receiveShadow = true;
@@ -55,231 +76,108 @@ scene.add(shadowPlane);
 const spinnerGroup = new THREE.Group();
 scene.add(spinnerGroup);
 
-const rotor = new THREE.Group();
+let rotor = new THREE.Group();
 spinnerGroup.add(rotor);
-
-const capGroup = new THREE.Group();
-spinnerGroup.add(capGroup);
-
-const R = 3.2;
-const r_o = 1.6;
-const r_w = 1.35;
-const delta = r_o - r_w;
-const D_f = (R * R - delta * delta) / (R + 2 * delta);
-const r_f = D_f - r_w;
-
-const shapePoints = [];
-const N = 40;
-
-for (let i = 0; i < 3; i++) {
-    const theta_c = (i * 2 * Math.PI) / 3;
-    const Cx = R * Math.cos(theta_c);
-    const Cy = R * Math.sin(theta_c);
-
-    const theta_f_prev = (theta_c - Math.PI / 3 + 2 * Math.PI) % (2 * Math.PI);
-    const Fx_prev = D_f * Math.cos(theta_f_prev);
-    const Fy_prev = D_f * Math.sin(theta_f_prev);
-    const ang_start = Math.atan2(Fy_prev - Cy, Fx_prev - Cx);
-
-    const theta_f = theta_c + Math.PI / 3;
-    const Fx = D_f * Math.cos(theta_f);
-    const Fy = D_f * Math.sin(theta_f);
-    const ang_end = Math.atan2(Fy - Cy, Fx - Cx);
-
-    let sweep = ang_end - ang_start;
-    while (sweep < 0) sweep += 2 * Math.PI;
-
-    for (let s = 0; s <= N; s++) {
-        const a = ang_start + (sweep * s) / N;
-        shapePoints.push(new THREE.Vector2(Cx + r_o * Math.cos(a), Cy + r_o * Math.sin(a)));
-    }
-
-    const next_theta_c = ((i + 1) % 3) * 2 * Math.PI / 3;
-    const next_Cx = R * Math.cos(next_theta_c);
-    const next_Cy = R * Math.sin(next_theta_c);
-
-    const f_ang_start = Math.atan2(Cy - Fy, Cx - Fx);
-    const f_ang_end = Math.atan2(next_Cy - Fy, next_Cx - Fx);
-    let f_sweep = f_ang_end - f_ang_start;
-    while (f_sweep > 0) f_sweep -= 2 * Math.PI;
-
-    for (let s = 1; s <= N; s++) {
-        const a = f_ang_start + (f_sweep * s) / N;
-        shapePoints.push(new THREE.Vector2(Fx + r_f * Math.cos(a), Fy + r_f * Math.sin(a)));
-    }
-}
-
-const spinnerShape = new THREE.Shape(shapePoints);
-
-const centerHole = new THREE.Path();
-centerHole.absarc(0, 0, 1.1, 0, Math.PI * 2, true);
-spinnerShape.holes.push(centerHole);
-
-for (let i = 0; i < 3; i++) {
-    const theta_c = (i * 2 * Math.PI) / 3;
-    const Cx = R * Math.cos(theta_c);
-    const Cy = R * Math.sin(theta_c);
-    const outerHole = new THREE.Path();
-    outerHole.absarc(Cx, Cy, 1.1, 0, Math.PI * 2, true);
-    spinnerShape.holes.push(outerHole);
-}
-
-const extrudeSettings = {
-    steps: 1,
-    depth: 0.44,
-    bevelEnabled: true,
-    bevelThickness: 0.08,
-    bevelSize: 0.08,
-    bevelSegments: 5,
-    curveSegments: 36
-};
-
-const bodyGeometry = new THREE.ExtrudeGeometry(spinnerShape, extrudeSettings);
-bodyGeometry.center();
 
 const bodyMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x2196f3,
-    roughness: 0.25,
-    metalness: 0.12,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.15
+    roughness: 0.22,
+    metalness: 0.1,
+    clearcoat: 0.85,
+    clearcoatRoughness: 0.12
 });
 
-const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-bodyMesh.castShadow = true;
-bodyMesh.receiveShadow = true;
-rotor.add(bodyMesh);
-
-const metalMaterial = new THREE.MeshStandardMaterial({
-    color: 0xdcdcdc,
+const weightsMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd8d8d8,
     metalness: 0.95,
-    roughness: 0.15
+    roughness: 0.18
 });
-
-const ballMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    metalness: 1.0,
-    roughness: 0.05
-});
-
-const brassMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd4af37,
-    metalness: 0.85,
-    roughness: 0.25
-});
-
-const darkRingMaterial = new THREE.MeshStandardMaterial({
-    color: 0x222222,
-    metalness: 0.7,
-    roughness: 0.5
-});
-
-function createWeightAssembly() {
-    const weightGroup = new THREE.Group();
-
-    const outerRingGeo = new THREE.CylinderGeometry(1.09, 1.09, 0.54, 36, 1, true);
-    const outerRing = new THREE.Mesh(outerRingGeo, metalMaterial);
-    outerRing.rotation.x = Math.PI / 2;
-    outerRing.castShadow = true;
-    weightGroup.add(outerRing);
-
-    const brassRingGeo = new THREE.CylinderGeometry(0.96, 0.96, 0.5, 36, 1, true);
-    const brassRing = new THREE.Mesh(brassRingGeo, brassMaterial);
-    brassRing.rotation.x = Math.PI / 2;
-    weightGroup.add(brassRing);
-
-    const innerCoreGeo = new THREE.CylinderGeometry(0.72, 0.72, 0.5, 36);
-    const innerCore = new THREE.Mesh(innerCoreGeo, darkRingMaterial);
-    innerCore.rotation.x = Math.PI / 2;
-    innerCore.castShadow = true;
-    weightGroup.add(innerCore);
-
-    const centerPinGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.52, 32);
-    const centerPin = new THREE.Mesh(centerPinGeo, metalMaterial);
-    centerPin.rotation.x = Math.PI / 2;
-    centerPin.castShadow = true;
-    weightGroup.add(centerPin);
-
-    const ballCount = 6;
-    const ballRadius = 0.1;
-    const ringRadius = 0.84;
-    const ballGeo = new THREE.SphereGeometry(ballRadius, 16, 16);
-
-    for (let j = 0; j < ballCount; j++) {
-        const ballAngle = (j * 2 * Math.PI) / ballCount;
-        const ball = new THREE.Mesh(ballGeo, ballMaterial);
-        ball.position.set(ringRadius * Math.cos(ballAngle), ringRadius * Math.sin(ballAngle), 0);
-        ball.castShadow = true;
-        weightGroup.add(ball);
-    }
-
-    return weightGroup;
-}
-
-for (let i = 0; i < 3; i++) {
-    const theta_c = (i * 2 * Math.PI) / 3;
-    const Cx = R * Math.cos(theta_c);
-    const Cy = R * Math.sin(theta_c);
-    const weight = createWeightAssembly();
-    weight.position.set(Cx, Cy, 0);
-    rotor.add(weight);
-}
-
-const centerBearingGroup = new THREE.Group();
-
-const centerOuterRingGeo = new THREE.CylinderGeometry(1.09, 1.09, 0.52, 36, 1, true);
-const centerOuterRing = new THREE.Mesh(centerOuterRingGeo, metalMaterial);
-centerOuterRing.rotation.x = Math.PI / 2;
-centerBearingGroup.add(centerOuterRing);
-
-const centerBallCount = 8;
-const centerBallRadius = 0.11;
-const centerOrbitRadius = 0.82;
-const centerBallGeo = new THREE.SphereGeometry(centerBallRadius, 16, 16);
-
-for (let j = 0; j < centerBallCount; j++) {
-    const ballAngle = (j * 2 * Math.PI) / centerBallCount;
-    const ball = new THREE.Mesh(centerBallGeo, ballMaterial);
-    ball.position.set(centerOrbitRadius * Math.cos(ballAngle), centerOrbitRadius * Math.sin(ballAngle), 0);
-    centerBearingGroup.add(ball);
-}
-
-rotor.add(centerBearingGroup);
 
 const capMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1f1f1f,
-    roughness: 0.35,
-    metalness: 0.6
+    color: 0x222222,
+    metalness: 0.6,
+    roughness: 0.4
 });
 
-function createCap(zPos, flip) {
-    const cap = new THREE.Group();
+const gltfLoader = new THREE.GLTFLoader();
+gltfLoader.load('./spinner.glb', (gltf) => {
+    while (rotor.children.length > 0) {
+        rotor.remove(rotor.children[0]);
+    }
+    while (spinnerGroup.children.length > 0) {
+        spinnerGroup.remove(spinnerGroup.children[0]);
+    }
 
-    const baseGeo = new THREE.CylinderGeometry(0.88, 0.92, 0.16, 40);
-    const base = new THREE.Mesh(baseGeo, capMaterial);
-    base.rotation.x = Math.PI / 2;
-    base.castShadow = true;
-    cap.add(base);
+    rotor = new THREE.Group();
+    spinnerGroup.add(rotor);
 
-    const rimGeo = new THREE.TorusGeometry(0.72, 0.05, 16, 40);
-    const rim = new THREE.Mesh(rimGeo, metalMaterial);
-    rim.position.z = flip ? -0.08 : 0.08;
-    cap.add(rim);
+    const loadedRotor = gltf.scene.getObjectByName('Rotor');
+    const loadedCap = gltf.scene.getObjectByName('Cap');
 
-    const padGeo = new THREE.CylinderGeometry(0.68, 0.68, 0.08, 40);
-    const pad = new THREE.Mesh(padGeo, capMaterial);
-    pad.rotation.x = Math.PI / 2;
-    pad.position.z = flip ? -0.06 : 0.06;
-    cap.add(pad);
+    if (loadedRotor) {
+        loadedRotor.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                if (child.name === 'Body') {
+                    child.material = bodyMaterial;
+                } else {
+                    child.material = weightsMaterial;
+                }
+            }
+        });
+        rotor.add(loadedRotor);
+    }
 
-    cap.position.z = zPos;
-    return cap;
+    if (loadedCap) {
+        loadedCap.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                child.material = capMaterial;
+            }
+        });
+        spinnerGroup.add(loadedCap);
+    }
+});
+
+function applyColor(val) {
+    let cleanHex = val.trim();
+    if (!cleanHex.startsWith('#')) cleanHex = '#' + cleanHex;
+    if (/^#[0-9A-Fa-f]{6}$/.test(cleanHex)) {
+        bodyMaterial.color.setStyle(cleanHex);
+        hexInput.value = cleanHex.toUpperCase();
+        nativePicker.value = cleanHex;
+    }
 }
 
-const topCap = createCap(0.32, false);
-const bottomCap = createCap(-0.32, true);
-capGroup.add(topCap);
-capGroup.add(bottomCap);
+function openColorPicker() {
+    colorModal.classList.remove('hidden');
+    controls.enabled = false;
+    hexInput.value = '#' + bodyMaterial.color.getHexString().toUpperCase();
+    nativePicker.value = '#' + bodyMaterial.color.getHexString();
+    hexInput.focus();
+    hexInput.select();
+}
+
+function closeColorPicker() {
+    colorModal.classList.add('hidden');
+    controls.enabled = true;
+}
+
+colorModal.addEventListener('click', (e) => {
+    if (e.target === colorModal) {
+        closeColorPicker();
+    }
+});
+
+hexInput.addEventListener('input', (e) => {
+    applyColor(e.target.value);
+});
+
+nativePicker.addEventListener('input', (e) => {
+    applyColor(e.target.value);
+});
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -289,6 +187,9 @@ let previousPointerAngle = 0;
 let previousPointerTime = 0;
 let angularVelocity = 0;
 let velocityHistory = [];
+
+let clickCount = 0;
+let clickTimer = null;
 
 function getPointerAngle(clientX, clientY) {
     const spinnerCenter = new THREE.Vector3();
@@ -312,8 +213,24 @@ function normalizeAngleDelta(delta) {
     return delta;
 }
 
+window.addEventListener('click', (e) => {
+    if (!colorModal.classList.contains('hidden')) return;
+
+    clickCount++;
+    if (clickTimer) clearTimeout(clickTimer);
+
+    if (e.detail === 3 || clickCount >= 3) {
+        clickCount = 0;
+        openColorPicker();
+    } else {
+        clickTimer = setTimeout(() => {
+            clickCount = 0;
+        }, 350);
+    }
+});
+
 window.addEventListener('pointerdown', (e) => {
-    if (e.target === colorPicker) return;
+    if (!colorModal.classList.contains('hidden')) return;
 
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -355,7 +272,9 @@ window.addEventListener('pointermove', (e) => {
 function endSpinnerDrag() {
     if (!isDraggingSpinner) return;
     isDraggingSpinner = false;
-    controls.enabled = true;
+    if (colorModal.classList.contains('hidden')) {
+        controls.enabled = true;
+    }
 
     if (velocityHistory.length > 0) {
         const sum = velocityHistory.reduce((acc, v) => acc + v, 0);
@@ -368,41 +287,19 @@ function endSpinnerDrag() {
 window.addEventListener('pointerup', endSpinnerDrag);
 window.addEventListener('pointercancel', endSpinnerDrag);
 
-window.addEventListener('dblclick', (e) => {
-    if (e.target === colorPicker) return;
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(rotor.children, true);
-    if (hits.length > 0) {
-        const boost = (Math.random() > 0.5 ? 1 : -1) * (35 + Math.random() * 25);
-        angularVelocity += boost;
-    }
-});
-
-colorPicker.addEventListener('input', (e) => {
-    bodyMaterial.color.setStyle(e.target.value);
-});
-
-const colorPresets = [
-    '#2196f3',
-    '#e91e63',
-    '#4caf50',
-    '#ff9800',
-    '#9c27b0',
-    '#00bcd4',
-    '#212121',
-    '#ffffff'
-];
-
 window.addEventListener('keydown', (e) => {
     const key = e.key;
+
+    if (!colorModal.classList.contains('hidden')) {
+        if (key === 'Escape' || key === 'Enter') {
+            closeColorPicker();
+        }
+        return;
+    }
+
     if (key >= '1' && key <= '8') {
         const idx = parseInt(key, 10) - 1;
-        const col = colorPresets[idx];
-        colorPicker.value = col;
-        bodyMaterial.color.setStyle(col);
+        applyColor(paletteColors[idx]);
     } else if (key === ' ' || key === 'Spacebar') {
         const boost = (Math.random() > 0.5 ? 1 : -1) * (40 + Math.random() * 20);
         angularVelocity = boost;
