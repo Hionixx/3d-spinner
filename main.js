@@ -394,6 +394,10 @@ hexInput.addEventListener('input', (e) => {
     applyColor(e.target.value);
 });
 
+hexInput.addEventListener('click', () => {
+    hexInput.select();
+});
+
 nativePicker.addEventListener('input', (e) => {
     applyColor(e.target.value);
 });
