@@ -38,19 +38,6 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 container.appendChild(renderer.domElement);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.screenSpacePanning = true;
-controls.minDistance = 5;
-controls.maxDistance = 35;
-
-controls.addEventListener('change', () => {
-    if (!isMovingSpinner && !isDraggingSpinner) {
-        spinnerGroup.position.copy(controls.target);
-    }
-});
-
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
 scene.add(ambientLight);
 
@@ -138,8 +125,6 @@ const ballMaterial = new THREE.MeshStandardMaterial({
     metalness: 1.0,
     roughness: 0.05
 });
-
-
 
 function buildSpinnerModel() {
     while (rotor.children.length > 0) rotor.remove(rotor.children[0]);
@@ -284,27 +269,27 @@ function buildSpinnerModel() {
     }
 
     function createFingerCap(zPos, flip) {
-        const capGroup = new THREE.Group();
+        const capG = new THREE.Group();
 
         const baseCapGeo = new THREE.CylinderGeometry(0.88, 0.92, 0.16, 48);
         const baseCap = new THREE.Mesh(baseCapGeo, capMaterial);
         baseCap.rotation.x = Math.PI / 2;
         baseCap.castShadow = true;
-        capGroup.add(baseCap);
+        capG.add(baseCap);
 
         const torusRimGeo = new THREE.TorusGeometry(0.72, 0.04, 16, 48);
         const torusRim = new THREE.Mesh(torusRimGeo, weightsMaterial);
         torusRim.position.z = flip ? -0.08 : 0.08;
-        capGroup.add(torusRim);
+        capG.add(torusRim);
 
         const gripDishGeo = new THREE.CylinderGeometry(0.64, 0.64, 0.06, 48);
         const gripDish = new THREE.Mesh(gripDishGeo, capMaterial);
         gripDish.rotation.x = Math.PI / 2;
         gripDish.position.z = flip ? -0.06 : 0.06;
-        capGroup.add(gripDish);
+        capG.add(gripDish);
 
-        capGroup.position.z = zPos;
-        return capGroup;
+        capG.position.z = zPos;
+        return capG;
     }
 
     const topCap = createFingerCap(0.32, false);
@@ -312,8 +297,6 @@ function buildSpinnerModel() {
     capGroup.add(topCap);
     capGroup.add(bottomCap);
 }
-
-
 
 buildSpinnerModel();
 
@@ -332,7 +315,6 @@ function applyColor(val) {
 
 function openColorPicker() {
     colorModal.classList.remove('hidden');
-    controls.enabled = false;
     hexInput.value = '#' + bodyMaterial.color.getHexString().toUpperCase();
     nativePicker.value = '#' + bodyMaterial.color.getHexString();
     hexInput.focus();
@@ -341,7 +323,6 @@ function openColorPicker() {
 
 function closeColorPicker() {
     colorModal.classList.add('hidden');
-    controls.enabled = true;
 }
 
 colorModal.addEventListener('click', (e) => {
@@ -367,42 +348,29 @@ nativePicker.addEventListener('input', (e) => {
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-let isDraggingSpinner = false;
-let isMovingSpinner = false;
-const dragPlane = new THREE.Plane();
-const planeIntersect = new THREE.Vector3();
-const dragOffset = new THREE.Vector3();
-let previousPointerAngle = 0;
-let previousPointerTime = 0;
+let isPointerDown = false;
+let isMoving = false;
+let isRotating = false;
+let pointerDownOnRotor = false;
+let startX = 0;
+let startY = 0;
+let lastX = 0;
+let lastY = 0;
+let dragDistance = 0;
+let downTime = 0;
+
+let rotVelocityX = 0;
+let rotVelocityY = 0;
 let angularVelocity = 0;
-let velocityHistory = [];
 
 let clickCount = 0;
 let clickTimer = null;
 let lastClickX = 0;
 let lastClickY = 0;
 
-function getPointerAngle(clientX, clientY) {
-    const spinnerCenter = new THREE.Vector3();
-    spinnerGroup.getWorldPosition(spinnerCenter);
-    const screenCenter = spinnerCenter.clone().project(camera);
-    const cx = ((screenCenter.x + 1) * window.innerWidth) / 2;
-    const cy = ((-screenCenter.y + 1) * window.innerHeight) / 2;
-    return Math.atan2(clientY - cy, clientX - cx);
-}
-
-function getRotorAlignmentSign() {
-    const normal = new THREE.Vector3(0, 0, 1).transformDirection(spinnerGroup.matrixWorld);
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    return normal.dot(camDir) < 0 ? -1 : 1;
-}
-
-function normalizeAngleDelta(delta) {
-    while (delta > Math.PI) delta -= 2 * Math.PI;
-    while (delta < -Math.PI) delta += 2 * Math.PI;
-    return delta;
-}
+window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
 
 window.addEventListener('click', (e) => {
     if (!colorModal.classList.contains('hidden')) return;
@@ -411,7 +379,7 @@ window.addEventListener('click', (e) => {
     lastClickX = e.clientX;
     lastClickY = e.clientY;
 
-    if (dist > 30) {
+    if (dist > 35) {
         clickCount = 1;
     } else {
         clickCount++;
@@ -429,52 +397,53 @@ window.addEventListener('click', (e) => {
     }
 });
 
+window.addEventListener('dblclick', (e) => {
+    if (!colorModal.classList.contains('hidden')) return;
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(rotor.children, true);
+    if (hits.length > 0) {
+        const dir = Math.sign(angularVelocity) || (Math.random() > 0.5 ? 1 : -1);
+        angularVelocity = dir * (65 + Math.random() * 25);
+    }
+});
+
 window.addEventListener('pointerdown', (e) => {
     if (!colorModal.classList.contains('hidden')) return;
 
+    isPointerDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    dragDistance = 0;
+    downTime = performance.now();
+
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
     raycaster.setFromCamera(mouse, camera);
+
     const capHits = raycaster.intersectObjects(capGroup.children, true);
     const rotorHits = raycaster.intersectObjects(rotor.children, true);
 
-    if (capHits.length > 0) {
-        isMovingSpinner = true;
-        controls.enabled = false;
+    pointerDownOnRotor = rotorHits.length > 0;
+
+    if (e.button === 2 || e.button === 1 || e.shiftKey || capHits.length > 0) {
+        isMoving = true;
+        isRotating = false;
         document.body.style.cursor = 'move';
-        const camNormal = new THREE.Vector3();
-        camera.getWorldDirection(camNormal).negate();
-        dragPlane.setFromNormalAndCoplanarPoint(camNormal, spinnerGroup.position);
-        raycaster.ray.intersectPlane(dragPlane, planeIntersect);
-        dragOffset.subVectors(spinnerGroup.position, planeIntersect);
-    } else if (rotorHits.length > 0) {
-        isDraggingSpinner = true;
-        controls.enabled = false;
-        document.body.style.cursor = 'grabbing';
-        previousPointerAngle = getPointerAngle(e.clientX, e.clientY);
-        previousPointerTime = performance.now();
-        velocityHistory = [];
-        angularVelocity = 0;
+    } else {
+        isRotating = true;
+        isMoving = false;
+        rotVelocityX = 0;
+        rotVelocityY = 0;
+        document.body.style.cursor = 'grab';
     }
 });
 
 window.addEventListener('pointermove', (e) => {
-    if (isMovingSpinner) {
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-        if (raycaster.ray.intersectPlane(dragPlane, planeIntersect)) {
-            const newPos = new THREE.Vector3().addVectors(planeIntersect, dragOffset);
-            const deltaPos = new THREE.Vector3().subVectors(newPos, spinnerGroup.position);
-            spinnerGroup.position.copy(newPos);
-            camera.position.add(deltaPos);
-            controls.target.copy(spinnerGroup.position);
-        }
-        return;
-    }
-
-    if (!isDraggingSpinner) {
+    if (!isPointerDown) {
         if (!colorModal.classList.contains('hidden')) {
             document.body.style.cursor = 'default';
             return;
@@ -487,62 +456,66 @@ window.addEventListener('pointermove', (e) => {
             document.body.style.cursor = 'move';
             return;
         }
-        const hoverHits = raycaster.intersectObjects(rotor.children, true);
-        document.body.style.cursor = hoverHits.length > 0 ? 'grab' : 'default';
+        const rotorHits = raycaster.intersectObjects(rotor.children, true);
+        document.body.style.cursor = rotorHits.length > 0 ? 'pointer' : 'default';
         return;
     }
 
-    const currentTime = performance.now();
-    const dt = (currentTime - previousPointerTime) / 1000;
-    const currentAngle = getPointerAngle(e.clientX, e.clientY);
-    const rawDelta = normalizeAngleDelta(currentAngle - previousPointerAngle);
-    const sign = getRotorAlignmentSign();
-    const delta = rawDelta * sign;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    dragDistance += Math.hypot(dx, dy);
+    lastX = e.clientX;
+    lastY = e.clientY;
 
-    rotor.rotation.z += delta;
+    if (isMoving) {
+        const dist = camera.position.z - spinnerGroup.position.z;
+        const factor = (2 * Math.tan((camera.fov * Math.PI) / 360) * dist) / window.innerHeight;
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+        spinnerGroup.position.addScaledVector(camRight, dx * factor);
+        spinnerGroup.position.addScaledVector(camUp, -dy * factor);
+    } else if (isRotating) {
+        document.body.style.cursor = 'grabbing';
+        const rotSpeed = 0.007;
+        rotVelocityX = dx * rotSpeed;
+        rotVelocityY = dy * rotSpeed;
 
-    if (dt > 0.005) {
-        const instantVelocity = delta / dt;
-        velocityHistory.push(instantVelocity);
-        if (velocityHistory.length > 5) velocityHistory.shift();
-        previousPointerTime = currentTime;
-        previousPointerAngle = currentAngle;
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+        const qYaw = new THREE.Quaternion().setFromAxisAngle(camUp, rotVelocityX);
+        const qPitch = new THREE.Quaternion().setFromAxisAngle(camRight, rotVelocityY);
+
+        spinnerGroup.quaternion.premultiply(qYaw);
+        spinnerGroup.quaternion.premultiply(qPitch);
     }
 });
 
-function endSpinnerDrag() {
-    if (isMovingSpinner) {
-        isMovingSpinner = false;
-        document.body.style.cursor = 'default';
-        if (colorModal.classList.contains('hidden')) {
-            controls.enabled = true;
+function endPointer(e) {
+    if (!isPointerDown) return;
+
+    const duration = performance.now() - downTime;
+
+    if (isRotating && pointerDownOnRotor) {
+        if (dragDistance < 10 && duration < 350) {
+            const dir = Math.random() > 0.5 ? 1 : -1;
+            angularVelocity += dir * (30 + Math.random() * 20);
+        } else if (duration < 300 && dragDistance >= 10) {
+            const flickSpeed = Math.hypot(rotVelocityX, rotVelocityY) * 2200;
+            const sign = Math.sign(rotVelocityX || 1);
+            angularVelocity += sign * Math.min(90, flickSpeed);
         }
     }
 
-    if (!isDraggingSpinner) return;
-    isDraggingSpinner = false;
+    isPointerDown = false;
+    isMoving = false;
+    isRotating = false;
+    pointerDownOnRotor = false;
     document.body.style.cursor = 'default';
-    if (colorModal.classList.contains('hidden')) {
-        controls.enabled = true;
-    }
-
-    if (velocityHistory.length > 0) {
-        let weightSum = 0;
-        let weightedSum = 0;
-        for (let i = 0; i < velocityHistory.length; i++) {
-            const w = i + 1;
-            weightedSum += velocityHistory[i] * w;
-            weightSum += w;
-        }
-        let avg = weightedSum / weightSum;
-        if (Math.abs(avg) < 0.05) avg = 0;
-        const maxVelocity = 120;
-        angularVelocity = Math.max(-maxVelocity, Math.min(maxVelocity, avg));
-    }
 }
 
-window.addEventListener('pointerup', endSpinnerDrag);
-window.addEventListener('pointercancel', endSpinnerDrag);
+window.addEventListener('pointerup', endPointer);
+window.addEventListener('pointercancel', endPointer);
 
 window.addEventListener('wheel', (e) => {
     if (!colorModal.classList.contains('hidden')) return;
@@ -550,8 +523,10 @@ window.addEventListener('wheel', (e) => {
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     const hits = raycaster.intersectObjects(rotor.children, true);
-    if (hits.length > 0) {
-        angularVelocity += Math.sign(-e.deltaY) * 8;
+    if (hits.length > 0 && !e.ctrlKey) {
+        angularVelocity += Math.sign(-e.deltaY) * 12;
+    } else {
+        camera.position.z = Math.max(6, Math.min(30, camera.position.z + Math.sign(e.deltaY) * 0.8));
     }
 }, { passive: true });
 
@@ -572,42 +547,51 @@ window.addEventListener('keydown', (e) => {
         const rCol = paletteColors[Math.floor(Math.random() * paletteColors.length)];
         applyColor(rCol);
     } else if (key === ' ' || key === 'Spacebar') {
-        const boost = (Math.random() > 0.5 ? 1 : -1) * (40 + Math.random() * 20);
+        const boost = (Math.random() > 0.5 ? 1 : -1) * (45 + Math.random() * 25);
         angularVelocity = boost;
     } else if (key === 'b' || key === 'B') {
         angularVelocity = 0;
     } else if (key === 'ArrowLeft') {
-        spinnerGroup.rotation.y -= 0.1;
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+        const q = new THREE.Quaternion().setFromAxisAngle(camUp, -0.1);
+        spinnerGroup.quaternion.premultiply(q);
     } else if (key === 'ArrowRight') {
-        spinnerGroup.rotation.y += 0.1;
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+        const q = new THREE.Quaternion().setFromAxisAngle(camUp, 0.1);
+        spinnerGroup.quaternion.premultiply(q);
     } else if (key === 'ArrowUp') {
-        spinnerGroup.rotation.x -= 0.1;
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const q = new THREE.Quaternion().setFromAxisAngle(camRight, -0.1);
+        spinnerGroup.quaternion.premultiply(q);
     } else if (key === 'ArrowDown') {
-        spinnerGroup.rotation.x += 0.1;
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const q = new THREE.Quaternion().setFromAxisAngle(camRight, 0.1);
+        spinnerGroup.quaternion.premultiply(q);
     } else if (key === 'q' || key === 'Q') {
-        spinnerGroup.rotation.z -= 0.1;
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        const q = new THREE.Quaternion().setFromAxisAngle(camDir, -0.1);
+        spinnerGroup.quaternion.premultiply(q);
     } else if (key === 'e' || key === 'E') {
-        spinnerGroup.rotation.z += 0.1;
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        const q = new THREE.Quaternion().setFromAxisAngle(camDir, 0.1);
+        spinnerGroup.quaternion.premultiply(q);
     } else if (key === 'w' || key === 'W' || key === 's' || key === 'S' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
         const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-        const moveDelta = new THREE.Vector3();
-        const speed = 0.35;
-        if (key === 'w' || key === 'W') moveDelta.addScaledVector(camUp, speed);
-        if (key === 's' || key === 'S') moveDelta.addScaledVector(camUp, -speed);
-        if (key === 'd' || key === 'D') moveDelta.addScaledVector(camRight, speed);
-        if (key === 'a' || key === 'A') moveDelta.addScaledVector(camRight, -speed);
-        spinnerGroup.position.add(moveDelta);
-        camera.position.add(moveDelta);
-        controls.target.copy(spinnerGroup.position);
+        const speed = 0.4;
+        if (key === 'w' || key === 'W') spinnerGroup.position.addScaledVector(camUp, speed);
+        if (key === 's' || key === 'S') spinnerGroup.position.addScaledVector(camUp, -speed);
+        if (key === 'd' || key === 'D') spinnerGroup.position.addScaledVector(camRight, speed);
+        if (key === 'a' || key === 'A') spinnerGroup.position.addScaledVector(camRight, -speed);
     } else if (key === 'r' || key === 'R') {
-        controls.reset();
-        camera.position.set(0, 0, 14);
-        camera.lookAt(0, 0, 0);
         spinnerGroup.position.set(0, 0, 0);
-        spinnerGroup.rotation.set(0, 0, 0);
-        controls.target.set(0, 0, 0);
+        spinnerGroup.quaternion.set(0, 0, 0, 1);
+        rotVelocityX = 0;
+        rotVelocityY = 0;
         angularVelocity = 0;
+        camera.position.set(0, 0, 14);
     }
 });
 
@@ -636,22 +620,34 @@ function animate(currentTime) {
     const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
     lastTime = currentTime;
 
-    if (!isDraggingSpinner) {
-        if (Math.abs(angularVelocity) > 0.0001) {
-            rotor.rotation.z += angularVelocity * dt;
-            const airFactor = 0.005 + 0.00012 * Math.abs(angularVelocity);
-            const damping = Math.max(0, 1 - airFactor * (dt * 60));
-            angularVelocity *= damping;
-        } else {
-            angularVelocity = 0;
-        }
+    if (!isPointerDown && (Math.abs(rotVelocityX) > 0.00005 || Math.abs(rotVelocityY) > 0.00005)) {
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+        const qYaw = new THREE.Quaternion().setFromAxisAngle(camUp, rotVelocityX);
+        const qPitch = new THREE.Quaternion().setFromAxisAngle(camRight, rotVelocityY);
+
+        spinnerGroup.quaternion.premultiply(qYaw);
+        spinnerGroup.quaternion.premultiply(qPitch);
+
+        rotVelocityX *= 0.92;
+        rotVelocityY *= 0.92;
     }
 
-    controls.update();
+    if (Math.abs(angularVelocity) > 0.0001) {
+        rotor.rotation.z += angularVelocity * dt;
+        const airFactor = 0.004 + 0.00008 * Math.abs(angularVelocity);
+        const damping = Math.max(0, 1 - airFactor * (dt * 60));
+        angularVelocity *= damping;
+    } else {
+        angularVelocity = 0;
+    }
+
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
     shadowPlane.position.copy(spinnerGroup.position).addScaledVector(camDir, 0.45);
     shadowPlane.quaternion.copy(camera.quaternion);
+
     renderer.render(scene, camera);
 }
 
