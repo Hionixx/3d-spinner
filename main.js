@@ -66,11 +66,25 @@ scene.add(dirLight2);
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xe8e8e8, 0.4);
 scene.add(hemisphereLight);
 
-const shadowPlaneGeo = new THREE.PlaneGeometry(50, 50);
-const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.14 });
+const shadowPlaneGeo = new THREE.PlaneGeometry(16, 16);
+const shadowCanvas = document.createElement('canvas');
+shadowCanvas.width = 256;
+shadowCanvas.height = 256;
+const sCtx = shadowCanvas.getContext('2d');
+const sGrad = sCtx.createRadialGradient(128, 128, 10, 128, 128, 110);
+sGrad.addColorStop(0, 'rgba(0, 0, 0, 0.22)');
+sGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.08)');
+sGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+sCtx.fillStyle = sGrad;
+sCtx.fillRect(0, 0, 256, 256);
+const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+const shadowPlaneMat = new THREE.MeshBasicMaterial({
+    map: shadowTex,
+    transparent: true,
+    depthWrite: false
+});
 const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
-shadowPlane.position.z = -2.5;
-shadowPlane.receiveShadow = true;
+shadowPlane.position.z = -0.6;
 scene.add(shadowPlane);
 
 const spinnerGroup = new THREE.Group();
