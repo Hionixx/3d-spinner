@@ -567,6 +567,9 @@ window.addEventListener('keydown', (e) => {
     if (key >= '1' && key <= '8') {
         const idx = parseInt(key, 10) - 1;
         applyColor(paletteColors[idx]);
+    } else if (key === 'c' || key === 'C') {
+        const rCol = paletteColors[Math.floor(Math.random() * paletteColors.length)];
+        applyColor(rCol);
     } else if (key === ' ' || key === 'Spacebar') {
         const boost = (Math.random() > 0.5 ? 1 : -1) * (40 + Math.random() * 20);
         angularVelocity = boost;
