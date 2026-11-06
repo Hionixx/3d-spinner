@@ -492,8 +492,14 @@ function endSpinnerDrag() {
     }
 
     if (velocityHistory.length > 0) {
-        const sum = velocityHistory.reduce((acc, v) => acc + v, 0);
-        let avg = sum / velocityHistory.length;
+        let weightSum = 0;
+        let weightedSum = 0;
+        for (let i = 0; i < velocityHistory.length; i++) {
+            const w = i + 1;
+            weightedSum += velocityHistory[i] * w;
+            weightSum += w;
+        }
+        let avg = weightedSum / weightSum;
         if (Math.abs(avg) < 0.05) avg = 0;
         const maxVelocity = 120;
         angularVelocity = Math.max(-maxVelocity, Math.min(maxVelocity, avg));
