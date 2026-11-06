@@ -522,6 +522,17 @@ function endSpinnerDrag() {
 window.addEventListener('pointerup', endSpinnerDrag);
 window.addEventListener('pointercancel', endSpinnerDrag);
 
+window.addEventListener('wheel', (e) => {
+    if (!colorModal.classList.contains('hidden')) return;
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(rotor.children, true);
+    if (hits.length > 0) {
+        angularVelocity += Math.sign(-e.deltaY) * 8;
+    }
+}, { passive: true });
+
 window.addEventListener('keydown', (e) => {
     const key = e.key;
 
