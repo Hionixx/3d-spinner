@@ -103,9 +103,9 @@ const bodyMaterial = new THREE.MeshPhysicalMaterial({
 });
 
 const weightsMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd8d8d8,
-    metalness: 0.95,
-    roughness: 0.18
+    color: 0xe8e8e8,
+    metalness: 0.98,
+    roughness: 0.12
 });
 
 const brassMaterial = new THREE.MeshStandardMaterial({
@@ -115,9 +115,9 @@ const brassMaterial = new THREE.MeshStandardMaterial({
 });
 
 const capMaterial = new THREE.MeshStandardMaterial({
-    color: 0x222222,
-    metalness: 0.6,
-    roughness: 0.4
+    color: 0x181818,
+    metalness: 0.5,
+    roughness: 0.35
 });
 
 const hexByteMap = new Uint8Array(256);
