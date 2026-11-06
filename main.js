@@ -233,6 +233,15 @@ function buildFallbackModel() {
         innerRace.position.set(Cx, Cy, 0);
         innerRace.castShadow = true;
         rotor.add(innerRace);
+
+        const ballGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        for (let b = 0; b < 7; b++) {
+            const bAng = (b * 2 * Math.PI) / 7;
+            const ball = new THREE.Mesh(ballGeo, weightsMaterial);
+            ball.position.set(Cx + 0.89 * Math.cos(bAng), Cy + 0.89 * Math.sin(bAng), 0);
+            ball.castShadow = true;
+            rotor.add(ball);
+        }
     }
 
     const topCap = new THREE.Mesh(
