@@ -42,28 +42,22 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.screenSpacePanning = true;
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
-dirLight.position.set(6, 10, 8);
-dirLight.castShadow = true;
-dirLight.shadow.mapSize.width = 2048;
-dirLight.shadow.mapSize.height = 2048;
-dirLight.shadow.camera.near = 0.5;
-dirLight.shadow.camera.far = 30;
-dirLight.shadow.camera.left = -6;
-dirLight.shadow.camera.right = 6;
-dirLight.shadow.camera.top = 6;
-dirLight.shadow.camera.bottom = -6;
-dirLight.shadow.bias = -0.0005;
-scene.add(dirLight);
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+keyLight.position.set(5, 8, 10);
+scene.add(keyLight);
 
-const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
-dirLight2.position.set(-6, -8, -6);
-scene.add(dirLight2);
+const fillLight = new THREE.DirectionalLight(0xeef2ff, 0.45);
+fillLight.position.set(-7, -4, 6);
+scene.add(fillLight);
 
-const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xe8e8e8, 0.4);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.35);
+rimLight.position.set(0, -9, -8);
+scene.add(rimLight);
+
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xd0d5dd, 0.4);
 scene.add(hemisphereLight);
 
 const shadowPlaneGeo = new THREE.PlaneGeometry(12, 12);
