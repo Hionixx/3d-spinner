@@ -251,6 +251,15 @@ function buildFallbackModel() {
         core.position.set(Cx, Cy, 0);
         core.castShadow = true;
         rotor.add(core);
+
+        const seamGeo = new THREE.TorusGeometry(1.11, 0.02, 12, 48);
+        const seamMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const frontSeam = new THREE.Mesh(seamGeo, seamMat);
+        frontSeam.position.set(Cx, Cy, 0.23);
+        rotor.add(frontSeam);
+        const backSeam = new THREE.Mesh(seamGeo, seamMat);
+        backSeam.position.set(Cx, Cy, -0.23);
+        rotor.add(backSeam);
     }
 
     const centerOuterGeo = new THREE.CylinderGeometry(1.09, 1.09, 0.52, 48, 1, true);
