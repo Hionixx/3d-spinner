@@ -220,14 +220,12 @@ function buildFallbackModel() {
         const Cx = R * Math.cos(theta_c);
         const Cy = R * Math.sin(theta_c);
 
-        const weightRing = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.09, 1.09, 0.52, 36),
-            weightsMaterial
-        );
-        weightRing.rotation.x = Math.PI / 2;
-        weightRing.position.set(Cx, Cy, 0);
-        weightRing.castShadow = true;
-        rotor.add(weightRing);
+        const outerRaceGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.52, 48, 1, true);
+        const outerRace = new THREE.Mesh(outerRaceGeo, weightsMaterial);
+        outerRace.rotation.x = Math.PI / 2;
+        outerRace.position.set(Cx, Cy, 0);
+        outerRace.castShadow = true;
+        rotor.add(outerRace);
     }
 
     const topCap = new THREE.Mesh(
