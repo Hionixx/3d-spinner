@@ -226,6 +226,13 @@ function buildFallbackModel() {
         outerRace.position.set(Cx, Cy, 0);
         outerRace.castShadow = true;
         rotor.add(outerRace);
+
+        const innerRaceGeo = new THREE.CylinderGeometry(0.68, 0.68, 0.52, 48, 1, true);
+        const innerRace = new THREE.Mesh(innerRaceGeo, weightsMaterial);
+        innerRace.rotation.x = Math.PI / 2;
+        innerRace.position.set(Cx, Cy, 0);
+        innerRace.castShadow = true;
+        rotor.add(innerRace);
     }
 
     const topCap = new THREE.Mesh(
