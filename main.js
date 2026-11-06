@@ -118,23 +118,9 @@ const capMaterial = new THREE.MeshStandardMaterial({
     roughness: 0.35
 });
 
-const hexByteMap = new Uint8Array(256);
-for (let i = 0; i < 10; i++) hexByteMap[48 + i] = i;
-for (let i = 0; i < 6; i++) {
-    hexByteMap[97 + i] = 10 + i;
-    hexByteMap[65 + i] = 10 + i;
-}
 
-function hexToArrayBuffer(hex) {
-    const len = hex.length >>> 1;
-    const bytes = new Uint8Array(len);
-    for (let i = 0, j = 0; i < len; i++, j += 2) {
-        bytes[i] = (hexByteMap[hex.charCodeAt(j)] << 4) | hexByteMap[hex.charCodeAt(j + 1)];
-    }
-    return bytes.buffer;
-}
 
-function buildFallbackModel() {
+function buildSpinnerModel() {
     while (rotor.children.length > 0) rotor.remove(rotor.children[0]);
     while (spinnerGroup.children.length > 0) spinnerGroup.remove(spinnerGroup.children[0]);
 
@@ -309,55 +295,9 @@ function buildFallbackModel() {
     spinnerGroup.add(bottomCap);
 }
 
-function setupLoadedModel(gltf) {
-    while (rotor.children.length > 0) rotor.remove(rotor.children[0]);
-    while (spinnerGroup.children.length > 0) spinnerGroup.remove(spinnerGroup.children[0]);
 
-    rotor = new THREE.Group();
-    spinnerGroup.add(rotor);
 
-    const loadedRotor = gltf.scene.getObjectByName('Rotor');
-    const loadedCap = gltf.scene.getObjectByName('Cap');
-
-    if (loadedRotor) {
-        loadedRotor.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-                if (child.name === 'Body') {
-                    child.material = bodyMaterial;
-                } else {
-                    child.material = weightsMaterial;
-                }
-            }
-        });
-        rotor.add(loadedRotor);
-    }
-
-    if (loadedCap) {
-        loadedCap.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-                child.material = capMaterial;
-            }
-        });
-        spinnerGroup.add(loadedCap);
-    }
-}
-
-buildFallbackModel();
-
-if (typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined' && typeof SPINNER_MODEL_HEX !== 'undefined') {
-    try {
-        const loader = new THREE.GLTFLoader();
-        const buf = hexToArrayBuffer(SPINNER_MODEL_HEX);
-        loader.parse(buf, '', (gltf) => {
-            setupLoadedModel(gltf);
-        });
-    } catch (e) {
-    }
-}
+buildSpinnerModel();
 
 function applyColor(val) {
     let cleanHex = val.trim();
