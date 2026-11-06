@@ -405,6 +405,8 @@ let velocityHistory = [];
 
 let clickCount = 0;
 let clickTimer = null;
+let lastClickX = 0;
+let lastClickY = 0;
 
 function getPointerAngle(clientX, clientY) {
     const spinnerCenter = new THREE.Vector3();
@@ -431,7 +433,16 @@ function normalizeAngleDelta(delta) {
 window.addEventListener('click', (e) => {
     if (!colorModal.classList.contains('hidden')) return;
 
-    clickCount++;
+    const dist = Math.hypot(e.clientX - lastClickX, e.clientY - lastClickY);
+    lastClickX = e.clientX;
+    lastClickY = e.clientY;
+
+    if (dist > 30) {
+        clickCount = 1;
+    } else {
+        clickCount++;
+    }
+
     if (clickTimer) clearTimeout(clickTimer);
 
     if (e.detail === 3 || clickCount >= 3) {
@@ -440,7 +451,7 @@ window.addEventListener('click', (e) => {
     } else {
         clickTimer = setTimeout(() => {
             clickCount = 0;
-        }, 350);
+        }, 400);
     }
 });
 
