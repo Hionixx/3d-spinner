@@ -266,20 +266,17 @@ function setupLoadedModel(gltf) {
     }
 }
 
-if (typeof THREE.GLTFLoader !== 'undefined' && typeof SPINNER_MODEL_HEX !== 'undefined') {
+buildFallbackModel();
+
+if (typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined' && typeof SPINNER_MODEL_HEX !== 'undefined') {
     try {
         const loader = new THREE.GLTFLoader();
         const buf = hexToArrayBuffer(SPINNER_MODEL_HEX);
         loader.parse(buf, '', (gltf) => {
             setupLoadedModel(gltf);
-        }, () => {
-            buildFallbackModel();
         });
     } catch (e) {
-        buildFallbackModel();
     }
-} else {
-    buildFallbackModel();
 }
 
 function applyColor(val) {
