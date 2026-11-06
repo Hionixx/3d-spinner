@@ -7,10 +7,19 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
     <div id="canvas-container"></div>
-    <input type="color" id="color-picker" value="#2196f3" title="Цвет">
+    <div id="color-modal" class="hidden">
+        <div class="color-picker-card">
+            <div class="hex-row">
+                <input type="color" id="native-picker" value="#2196f3">
+                <input type="text" id="hex-input" value="#2196F3" maxlength="7" spellcheck="false" autocomplete="off">
+            </div>
+            <div id="palette-grid" class="palette-grid"></div>
+        </div>
+    </div>
     <script src="main.js"></script>
 </body>
 </html>
