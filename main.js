@@ -107,6 +107,12 @@ const weightsMaterial = new THREE.MeshStandardMaterial({
     roughness: 0.18
 });
 
+const brassMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd4af37,
+    metalness: 0.85,
+    roughness: 0.25
+});
+
 const capMaterial = new THREE.MeshStandardMaterial({
     color: 0x222222,
     metalness: 0.6,
@@ -242,6 +248,13 @@ function buildFallbackModel() {
             ball.castShadow = true;
             rotor.add(ball);
         }
+
+        const coreGeo = new THREE.CylinderGeometry(0.67, 0.67, 0.48, 36);
+        const core = new THREE.Mesh(coreGeo, brassMaterial);
+        core.rotation.x = Math.PI / 2;
+        core.position.set(Cx, Cy, 0);
+        core.castShadow = true;
+        rotor.add(core);
     }
 
     const topCap = new THREE.Mesh(
