@@ -271,17 +271,33 @@ function buildFallbackModel() {
         rotor.add(cBall);
     }
 
-    const topCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.88, 0.92, 0.16, 40),
-        capMaterial
-    );
-    topCap.rotation.x = Math.PI / 2;
-    topCap.position.z = 0.32;
-    topCap.castShadow = true;
-    spinnerGroup.add(topCap);
+    function createFingerCap(zPos, flip) {
+        const capGroup = new THREE.Group();
 
-    const bottomCap = topCap.clone();
-    bottomCap.position.z = -0.32;
+        const baseCapGeo = new THREE.CylinderGeometry(0.88, 0.92, 0.16, 48);
+        const baseCap = new THREE.Mesh(baseCapGeo, capMaterial);
+        baseCap.rotation.x = Math.PI / 2;
+        baseCap.castShadow = true;
+        capGroup.add(baseCap);
+
+        const torusRimGeo = new THREE.TorusGeometry(0.72, 0.04, 16, 48);
+        const torusRim = new THREE.Mesh(torusRimGeo, weightsMaterial);
+        torusRim.position.z = flip ? -0.08 : 0.08;
+        capGroup.add(torusRim);
+
+        const gripDishGeo = new THREE.CylinderGeometry(0.66, 0.66, 0.06, 48);
+        const gripDish = new THREE.Mesh(gripDishGeo, capMaterial);
+        gripDish.rotation.x = Math.PI / 2;
+        gripDish.position.z = flip ? -0.06 : 0.06;
+        capGroup.add(gripDish);
+
+        capGroup.position.z = zPos;
+        return capGroup;
+    }
+
+    const topCap = createFingerCap(0.32, false);
+    const bottomCap = createFingerCap(-0.32, true);
+    spinnerGroup.add(topCap);
     spinnerGroup.add(bottomCap);
 }
 
