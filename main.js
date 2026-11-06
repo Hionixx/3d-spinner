@@ -360,6 +360,9 @@ if (typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined' && t
 function applyColor(val) {
     let cleanHex = val.trim();
     if (!cleanHex.startsWith('#')) cleanHex = '#' + cleanHex;
+    if (/^#[0-9A-Fa-f]{3}$/.test(cleanHex)) {
+        cleanHex = '#' + cleanHex[1] + cleanHex[1] + cleanHex[2] + cleanHex[2] + cleanHex[3] + cleanHex[3];
+    }
     if (/^#[0-9A-Fa-f]{6}$/.test(cleanHex)) {
         bodyMaterial.color.setStyle(cleanHex);
         hexInput.value = cleanHex.toUpperCase();
