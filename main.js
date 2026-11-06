@@ -345,6 +345,166 @@ nativePicker.addEventListener('input', (e) => {
     applyColor(e.target.value);
 });
 
+let audioCtx = null;
+let bearingNoiseNode = null;
+let bearingNoiseFilter = null;
+let bearingToneOsc = null;
+let bearingToneFilter = null;
+let bearingGain = null;
+let isAudioInitialized = false;
+
+function initAudio() {
+    if (isAudioInitialized) {
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return;
+    }
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    audioCtx = new AudioContextClass();
+
+    const bufferSize = audioCtx.sampleRate * 2;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    let lastOut = 0.0;
+    for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        output[i] = (lastOut + 0.02 * white) / 1.02;
+        lastOut = output[i];
+        output[i] *= 3.5;
+    }
+
+    bearingNoiseNode = audioCtx.createBufferSource();
+    bearingNoiseNode.buffer = noiseBuffer;
+    bearingNoiseNode.loop = true;
+
+    bearingNoiseFilter = audioCtx.createBiquadFilter();
+    bearingNoiseFilter.type = 'bandpass';
+    bearingNoiseFilter.frequency.value = 600;
+    bearingNoiseFilter.Q.value = 3.2;
+
+    bearingToneOsc = audioCtx.createOscillator();
+    bearingToneOsc.type = 'triangle';
+    bearingToneOsc.frequency.value = 100;
+
+    bearingToneFilter = audioCtx.createBiquadFilter();
+    bearingToneFilter.type = 'lowpass';
+    bearingToneFilter.frequency.value = 900;
+
+    const toneGain = audioCtx.createGain();
+    toneGain.gain.value = 0.3;
+
+    bearingGain = audioCtx.createGain();
+    bearingGain.gain.value = 0;
+
+    bearingNoiseNode.connect(bearingNoiseFilter);
+    bearingNoiseFilter.connect(bearingGain);
+
+    bearingToneOsc.connect(bearingToneFilter);
+    bearingToneFilter.connect(toneGain);
+    toneGain.connect(bearingGain);
+
+    bearingGain.connect(audioCtx.destination);
+
+    bearingNoiseNode.start();
+    bearingToneOsc.start();
+
+    isAudioInitialized = true;
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function updateAudio() {
+    if (!isAudioInitialized || !audioCtx || !bearingGain) return;
+
+    const speed = Math.abs(angularVelocity);
+    if (speed < 0.2) {
+        bearingGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        return;
+    }
+
+    const normSpeed = Math.min(speed / 90, 1.4);
+    const targetGain = Math.min(0.35, normSpeed * 0.28);
+    const targetToneFreq = Math.min(680, 75 + speed * 6.8);
+    const targetFilterFreq = Math.min(3400, 380 + speed * 30);
+
+    bearingGain.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.03);
+    bearingToneOsc.frequency.setTargetAtTime(targetToneFreq, audioCtx.currentTime, 0.03);
+    bearingNoiseFilter.frequency.setTargetAtTime(targetFilterFreq, audioCtx.currentTime, 0.03);
+}
+
+function playFlickSound(strength) {
+    initAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(500 + Math.random() * 150, now);
+    osc.frequency.exponentialRampToValueAtTime(130, now + 0.07);
+
+    const s = Math.min(1.0, Math.max(0.25, (strength || 30) / 60));
+    gain.gain.setValueAtTime(s * 0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.08);
+
+    const snapNoise = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.05), audioCtx.sampleRate);
+    const data = snapNoise.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.25));
+    }
+    const noiseSource = audioCtx.createBufferSource();
+    noiseSource.buffer = snapNoise;
+
+    const nFilter = audioCtx.createBiquadFilter();
+    nFilter.type = 'highpass';
+    nFilter.frequency.value = 1400;
+
+    const nGain = audioCtx.createGain();
+    nGain.gain.setValueAtTime(s * 0.18, now);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+    noiseSource.connect(nFilter);
+    nFilter.connect(nGain);
+    nGain.connect(audioCtx.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.05);
+}
+
+function playBrakeSound() {
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(240, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.07);
+}
+
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -373,6 +533,7 @@ window.addEventListener('contextmenu', (e) => {
 });
 
 window.addEventListener('click', (e) => {
+    initAudio();
     if (!colorModal.classList.contains('hidden')) return;
 
     const dist = Math.hypot(e.clientX - lastClickX, e.clientY - lastClickY);
@@ -398,6 +559,7 @@ window.addEventListener('click', (e) => {
 });
 
 window.addEventListener('dblclick', (e) => {
+    initAudio();
     if (!colorModal.classList.contains('hidden')) return;
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -406,10 +568,12 @@ window.addEventListener('dblclick', (e) => {
     if (hits.length > 0) {
         const dir = Math.sign(angularVelocity) || (Math.random() > 0.5 ? 1 : -1);
         angularVelocity = dir * (65 + Math.random() * 25);
+        playFlickSound(70);
     }
 });
 
 window.addEventListener('pointerdown', (e) => {
+    initAudio();
     if (!colorModal.classList.contains('hidden')) return;
 
     isPointerDown = true;
@@ -499,11 +663,15 @@ function endPointer(e) {
     if (isRotating && pointerDownOnRotor) {
         if (dragDistance < 10 && duration < 350) {
             const dir = Math.random() > 0.5 ? 1 : -1;
-            angularVelocity += dir * (30 + Math.random() * 20);
+            const boost = dir * (30 + Math.random() * 20);
+            angularVelocity += boost;
+            playFlickSound(Math.abs(boost));
         } else if (duration < 300 && dragDistance >= 10) {
             const flickSpeed = Math.hypot(rotVelocityX, rotVelocityY) * 2200;
             const sign = Math.sign(rotVelocityX || 1);
-            angularVelocity += sign * Math.min(90, flickSpeed);
+            const boost = sign * Math.min(90, flickSpeed);
+            angularVelocity += boost;
+            playFlickSound(Math.abs(boost));
         }
     }
 
@@ -518,6 +686,7 @@ window.addEventListener('pointerup', endPointer);
 window.addEventListener('pointercancel', endPointer);
 
 window.addEventListener('wheel', (e) => {
+    initAudio();
     if (!colorModal.classList.contains('hidden')) return;
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -525,12 +694,14 @@ window.addEventListener('wheel', (e) => {
     const hits = raycaster.intersectObjects(rotor.children, true);
     if (hits.length > 0 && !e.ctrlKey) {
         angularVelocity += Math.sign(-e.deltaY) * 12;
+        playFlickSound(25);
     } else {
         camera.position.z = Math.max(6, Math.min(30, camera.position.z + Math.sign(e.deltaY) * 0.8));
     }
 }, { passive: true });
 
 window.addEventListener('keydown', (e) => {
+    initAudio();
     const key = e.key;
 
     if (!colorModal.classList.contains('hidden')) {
@@ -549,7 +720,11 @@ window.addEventListener('keydown', (e) => {
     } else if (key === ' ' || key === 'Spacebar') {
         const boost = (Math.random() > 0.5 ? 1 : -1) * (45 + Math.random() * 25);
         angularVelocity = boost;
+        playFlickSound(Math.abs(boost));
     } else if (key === 'b' || key === 'B') {
+        if (Math.abs(angularVelocity) > 0.1) {
+            playBrakeSound();
+        }
         angularVelocity = 0;
     } else if (key === 'ArrowLeft') {
         const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
@@ -590,6 +765,9 @@ window.addEventListener('keydown', (e) => {
         spinnerGroup.quaternion.set(0, 0, 0, 1);
         rotVelocityX = 0;
         rotVelocityY = 0;
+        if (Math.abs(angularVelocity) > 0.1) {
+            playBrakeSound();
+        }
         angularVelocity = 0;
         camera.position.set(0, 0, 14);
     }
@@ -606,8 +784,15 @@ let isTabActive = true;
 document.addEventListener('visibilitychange', () => {
     isTabActive = !document.hidden;
     if (isTabActive) {
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
         lastTime = performance.now();
         requestAnimationFrame(animate);
+    } else {
+        if (audioCtx && audioCtx.state === 'running') {
+            audioCtx.suspend();
+        }
     }
 });
 
@@ -642,6 +827,8 @@ function animate(currentTime) {
     } else {
         angularVelocity = 0;
     }
+
+    updateAudio();
 
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
