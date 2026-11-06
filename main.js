@@ -257,6 +257,20 @@ function buildFallbackModel() {
         rotor.add(core);
     }
 
+    const centerOuterGeo = new THREE.CylinderGeometry(1.09, 1.09, 0.52, 48, 1, true);
+    const centerOuter = new THREE.Mesh(centerOuterGeo, weightsMaterial);
+    centerOuter.rotation.x = Math.PI / 2;
+    centerOuter.castShadow = true;
+    rotor.add(centerOuter);
+
+    const centerBallGeo = new THREE.SphereGeometry(0.11, 16, 16);
+    for (let cb = 0; cb < 8; cb++) {
+        const cAng = (cb * 2 * Math.PI) / 8;
+        const cBall = new THREE.Mesh(centerBallGeo, weightsMaterial);
+        cBall.position.set(0.85 * Math.cos(cAng), 0.85 * Math.sin(cAng), 0);
+        rotor.add(cBall);
+    }
+
     const topCap = new THREE.Mesh(
         new THREE.CylinderGeometry(0.88, 0.92, 0.16, 40),
         capMaterial
