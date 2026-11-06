@@ -456,6 +456,7 @@ window.addEventListener('pointerdown', (e) => {
     if (hits.length > 0) {
         isDraggingSpinner = true;
         controls.enabled = false;
+        document.body.style.cursor = 'grabbing';
         previousPointerAngle = getPointerAngle(e.clientX, e.clientY);
         previousPointerTime = performance.now();
         velocityHistory = [];
@@ -464,7 +465,18 @@ window.addEventListener('pointerdown', (e) => {
 });
 
 window.addEventListener('pointermove', (e) => {
-    if (!isDraggingSpinner) return;
+    if (!isDraggingSpinner) {
+        if (!colorModal.classList.contains('hidden')) {
+            document.body.style.cursor = 'default';
+            return;
+        }
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hoverHits = raycaster.intersectObjects(rotor.children, true);
+        document.body.style.cursor = hoverHits.length > 0 ? 'grab' : 'default';
+        return;
+    }
 
     const currentTime = performance.now();
     const dt = (currentTime - previousPointerTime) / 1000;
@@ -487,6 +499,7 @@ window.addEventListener('pointermove', (e) => {
 function endSpinnerDrag() {
     if (!isDraggingSpinner) return;
     isDraggingSpinner = false;
+    document.body.style.cursor = 'default';
     if (colorModal.classList.contains('hidden')) {
         controls.enabled = true;
     }
