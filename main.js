@@ -99,14 +99,139 @@ const capMaterial = new THREE.MeshStandardMaterial({
     roughness: 0.4
 });
 
-const gltfLoader = new THREE.GLTFLoader();
-gltfLoader.load('./spinner.glb', (gltf) => {
-    while (rotor.children.length > 0) {
-        rotor.remove(rotor.children[0]);
+const hexByteMap = new Uint8Array(256);
+for (let i = 0; i < 10; i++) hexByteMap[48 + i] = i;
+for (let i = 0; i < 6; i++) {
+    hexByteMap[97 + i] = 10 + i;
+    hexByteMap[65 + i] = 10 + i;
+}
+
+function hexToArrayBuffer(hex) {
+    const len = hex.length >>> 1;
+    const bytes = new Uint8Array(len);
+    for (let i = 0, j = 0; i < len; i++, j += 2) {
+        bytes[i] = (hexByteMap[hex.charCodeAt(j)] << 4) | hexByteMap[hex.charCodeAt(j + 1)];
     }
-    while (spinnerGroup.children.length > 0) {
-        spinnerGroup.remove(spinnerGroup.children[0]);
+    return bytes.buffer;
+}
+
+function buildFallbackModel() {
+    while (rotor.children.length > 0) rotor.remove(rotor.children[0]);
+    while (spinnerGroup.children.length > 0) spinnerGroup.remove(spinnerGroup.children[0]);
+
+    rotor = new THREE.Group();
+    spinnerGroup.add(rotor);
+
+    const R = 3.2;
+    const r_o = 1.6;
+    const r_w = 1.35;
+    const delta = r_o - r_w;
+    const D_f = (R * R - delta * delta) / (R + 2 * delta);
+    const r_f = D_f - r_w;
+
+    const shapePoints = [];
+    const N = 40;
+
+    for (let i = 0; i < 3; i++) {
+        const theta_c = (i * 2 * Math.PI) / 3;
+        const Cx = R * Math.cos(theta_c);
+        const Cy = R * Math.sin(theta_c);
+
+        const theta_f_prev = (theta_c - Math.PI / 3 + 2 * Math.PI) % (2 * Math.PI);
+        const Fx_prev = D_f * Math.cos(theta_f_prev);
+        const Fy_prev = D_f * Math.sin(theta_f_prev);
+        const ang_start = Math.atan2(Fy_prev - Cy, Fx_prev - Cx);
+
+        const theta_f = theta_c + Math.PI / 3;
+        const Fx = D_f * Math.cos(theta_f);
+        const Fy = D_f * Math.sin(theta_f);
+        const ang_end = Math.atan2(Fy - Cy, Fx - Cx);
+
+        let sweep = ang_end - ang_start;
+        while (sweep < 0) sweep += 2 * Math.PI;
+
+        for (let s = 0; s <= N; s++) {
+            const a = ang_start + (sweep * s) / N;
+            shapePoints.push(new THREE.Vector2(Cx + r_o * Math.cos(a), Cy + r_o * Math.sin(a)));
+        }
+
+        const next_theta_c = ((i + 1) % 3) * 2 * Math.PI / 3;
+        const next_Cx = R * Math.cos(next_theta_c);
+        const next_Cy = R * Math.sin(next_theta_c);
+
+        const f_ang_start = Math.atan2(Cy - Fy, Cx - Fx);
+        const f_ang_end = Math.atan2(next_Cy - Fy, next_Cx - Fx);
+        let f_sweep = f_ang_end - f_ang_start;
+        while (f_sweep > 0) f_sweep -= 2 * Math.PI;
+
+        for (let s = 1; s <= N; s++) {
+            const a = f_ang_start + (f_sweep * s) / N;
+            shapePoints.push(new THREE.Vector2(Fx + r_f * Math.cos(a), Fy + r_f * Math.sin(a)));
+        }
     }
+
+    const spinnerShape = new THREE.Shape(shapePoints);
+    const centerHole = new THREE.Path();
+    centerHole.absarc(0, 0, 1.1, 0, Math.PI * 2, true);
+    spinnerShape.holes.push(centerHole);
+
+    for (let i = 0; i < 3; i++) {
+        const theta_c = (i * 2 * Math.PI) / 3;
+        const Cx = R * Math.cos(theta_c);
+        const Cy = R * Math.sin(theta_c);
+        const outerHole = new THREE.Path();
+        outerHole.absarc(Cx, Cy, 1.1, 0, Math.PI * 2, true);
+        spinnerShape.holes.push(outerHole);
+    }
+
+    const bodyGeometry = new THREE.ExtrudeGeometry(spinnerShape, {
+        steps: 1,
+        depth: 0.44,
+        bevelEnabled: true,
+        bevelThickness: 0.08,
+        bevelSize: 0.08,
+        bevelSegments: 5,
+        curveSegments: 36
+    });
+    bodyGeometry.center();
+
+    const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    bodyMesh.castShadow = true;
+    bodyMesh.receiveShadow = true;
+    rotor.add(bodyMesh);
+
+    for (let i = 0; i < 3; i++) {
+        const theta_c = (i * 2 * Math.PI) / 3;
+        const Cx = R * Math.cos(theta_c);
+        const Cy = R * Math.sin(theta_c);
+
+        const weightRing = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.09, 1.09, 0.52, 36),
+            weightsMaterial
+        );
+        weightRing.rotation.x = Math.PI / 2;
+        weightRing.position.set(Cx, Cy, 0);
+        weightRing.castShadow = true;
+        rotor.add(weightRing);
+    }
+
+    const topCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.88, 0.92, 0.16, 40),
+        capMaterial
+    );
+    topCap.rotation.x = Math.PI / 2;
+    topCap.position.z = 0.32;
+    topCap.castShadow = true;
+    spinnerGroup.add(topCap);
+
+    const bottomCap = topCap.clone();
+    bottomCap.position.z = -0.32;
+    spinnerGroup.add(bottomCap);
+}
+
+function setupLoadedModel(gltf) {
+    while (rotor.children.length > 0) rotor.remove(rotor.children[0]);
+    while (spinnerGroup.children.length > 0) spinnerGroup.remove(spinnerGroup.children[0]);
 
     rotor = new THREE.Group();
     spinnerGroup.add(rotor);
@@ -139,7 +264,23 @@ gltfLoader.load('./spinner.glb', (gltf) => {
         });
         spinnerGroup.add(loadedCap);
     }
-});
+}
+
+if (typeof THREE.GLTFLoader !== 'undefined' && typeof SPINNER_MODEL_HEX !== 'undefined') {
+    try {
+        const loader = new THREE.GLTFLoader();
+        const buf = hexToArrayBuffer(SPINNER_MODEL_HEX);
+        loader.parse(buf, '', (gltf) => {
+            setupLoadedModel(gltf);
+        }, () => {
+            buildFallbackModel();
+        });
+    } catch (e) {
+        buildFallbackModel();
+    }
+} else {
+    buildFallbackModel();
+}
 
 function applyColor(val) {
     let cleanHex = val.trim();
