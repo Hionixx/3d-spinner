@@ -7,7 +7,8 @@ const paletteGrid = document.getElementById('palette-grid');
 const paletteColors = [
     '#2196F3', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
     '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#F44336', '#E91E63',
-    '#9C27B0', '#673AB7', '#3F51B5', '#607D8B', '#212121', '#FFFFFF'
+    '#9C27B0', '#673AB7', '#3F51B5', '#1A237E', '#B76E79', '#E0A96D',
+    '#00E5FF', '#76FF03', '#FF4081', '#607D8B', '#212121', '#FFFFFF'
 ];
 
 paletteColors.forEach((hex) => {
