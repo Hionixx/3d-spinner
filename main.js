@@ -585,6 +585,10 @@ window.addEventListener('keydown', (e) => {
         spinnerGroup.rotation.x -= 0.1;
     } else if (key === 'ArrowDown') {
         spinnerGroup.rotation.x += 0.1;
+    } else if (key === 'q' || key === 'Q') {
+        spinnerGroup.rotation.z -= 0.1;
+    } else if (key === 'e' || key === 'E') {
+        spinnerGroup.rotation.z += 0.1;
     } else if (key === 'w' || key === 'W') {
         spinnerGroup.position.y += 0.2;
     } else if (key === 's' || key === 'S') {
