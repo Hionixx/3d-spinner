@@ -593,6 +593,8 @@ window.addEventListener('keydown', (e) => {
         spinnerGroup.position.x += 0.2;
     } else if (key === 'r' || key === 'R') {
         controls.reset();
+        camera.position.set(0, 0, 14);
+        camera.lookAt(0, 0, 0);
         spinnerGroup.position.set(0, 0, 0);
         spinnerGroup.rotation.set(0, 0, 0);
         angularVelocity = 0;
