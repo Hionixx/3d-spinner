@@ -118,6 +118,18 @@ const capMaterial = new THREE.MeshStandardMaterial({
     roughness: 0.35
 });
 
+const darkMetalMaterial = new THREE.MeshStandardMaterial({
+    color: 0x252525,
+    metalness: 0.8,
+    roughness: 0.35
+});
+
+const ballMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    metalness: 1.0,
+    roughness: 0.05
+});
+
 
 
 function buildSpinnerModel() {
@@ -193,12 +205,12 @@ function buildSpinnerModel() {
         steps: 1,
         depth: 0.46,
         bevelEnabled: true,
-        bevelThickness: 0.1,
-        bevelSize: 0.1,
+        bevelThickness: 0.08,
+        bevelSize: 0.08,
         bevelSegments: 6,
         curveSegments: 64
     });
-    bodyGeometry.center();
+    bodyGeometry.translate(0, 0, -0.23);
     bodyGeometry.computeVertexNormals();
 
     const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
@@ -211,57 +223,53 @@ function buildSpinnerModel() {
         const Cx = R * Math.cos(theta_c);
         const Cy = R * Math.sin(theta_c);
 
-        const outerRaceGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.52, 48, 1, true);
+        const outerRaceGeo = new THREE.CylinderGeometry(1.095, 1.095, 0.48, 48);
         const outerRace = new THREE.Mesh(outerRaceGeo, weightsMaterial);
         outerRace.rotation.x = Math.PI / 2;
         outerRace.position.set(Cx, Cy, 0);
         outerRace.castShadow = true;
         rotor.add(outerRace);
 
-        const innerRaceGeo = new THREE.CylinderGeometry(0.68, 0.68, 0.52, 48, 1, true);
-        const innerRace = new THREE.Mesh(innerRaceGeo, weightsMaterial);
-        innerRace.rotation.x = Math.PI / 2;
-        innerRace.position.set(Cx, Cy, 0);
-        innerRace.castShadow = true;
-        rotor.add(innerRace);
+        const racewayGeo = new THREE.CylinderGeometry(0.96, 0.96, 0.49, 48);
+        const raceway = new THREE.Mesh(racewayGeo, darkMetalMaterial);
+        raceway.rotation.x = Math.PI / 2;
+        raceway.position.set(Cx, Cy, 0);
+        rotor.add(raceway);
 
-        const ballGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        const ballGeo = new THREE.SphereGeometry(0.10, 16, 16);
         for (let b = 0; b < 7; b++) {
             const bAng = (b * 2 * Math.PI) / 7;
-            const ball = new THREE.Mesh(ballGeo, weightsMaterial);
-            ball.position.set(Cx + 0.89 * Math.cos(bAng), Cy + 0.89 * Math.sin(bAng), 0);
+            const ball = new THREE.Mesh(ballGeo, ballMaterial);
+            ball.position.set(Cx + 0.83 * Math.cos(bAng), Cy + 0.83 * Math.sin(bAng), 0);
             ball.castShadow = true;
             rotor.add(ball);
         }
 
-        const coreGeo = new THREE.CylinderGeometry(0.67, 0.67, 0.48, 36);
+        const coreGeo = new THREE.CylinderGeometry(0.66, 0.66, 0.50, 48);
         const core = new THREE.Mesh(coreGeo, brassMaterial);
         core.rotation.x = Math.PI / 2;
         core.position.set(Cx, Cy, 0);
         core.castShadow = true;
         rotor.add(core);
 
-        const seamGeo = new THREE.TorusGeometry(1.11, 0.02, 12, 48);
-        const seamMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-        const frontSeam = new THREE.Mesh(seamGeo, seamMat);
-        frontSeam.position.set(Cx, Cy, 0.23);
-        rotor.add(frontSeam);
-        const backSeam = new THREE.Mesh(seamGeo, seamMat);
-        backSeam.position.set(Cx, Cy, -0.23);
-        rotor.add(backSeam);
+        const pinGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.51, 36);
+        const pin = new THREE.Mesh(pinGeo, weightsMaterial);
+        pin.rotation.x = Math.PI / 2;
+        pin.position.set(Cx, Cy, 0);
+        rotor.add(pin);
     }
 
-    const centerOuterGeo = new THREE.CylinderGeometry(1.09, 1.09, 0.52, 48, 1, true);
-    const centerOuter = new THREE.Mesh(centerOuterGeo, weightsMaterial);
+    const centerOuterGeo = new THREE.CylinderGeometry(1.095, 1.095, 0.48, 48);
+    const centerOuter = new THREE.Mesh(centerOuterGeo, darkMetalMaterial);
     centerOuter.rotation.x = Math.PI / 2;
     centerOuter.castShadow = true;
     rotor.add(centerOuter);
 
-    const centerBallGeo = new THREE.SphereGeometry(0.11, 16, 16);
+    const centerBallGeo = new THREE.SphereGeometry(0.09, 16, 16);
     for (let cb = 0; cb < 8; cb++) {
         const cAng = (cb * 2 * Math.PI) / 8;
-        const cBall = new THREE.Mesh(centerBallGeo, weightsMaterial);
-        cBall.position.set(0.85 * Math.cos(cAng), 0.85 * Math.sin(cAng), 0);
+        const cBall = new THREE.Mesh(centerBallGeo, ballMaterial);
+        cBall.position.set(0.82 * Math.cos(cAng), 0.82 * Math.sin(cAng), 0);
         rotor.add(cBall);
     }
 
@@ -279,7 +287,7 @@ function buildSpinnerModel() {
         torusRim.position.z = flip ? -0.08 : 0.08;
         capGroup.add(torusRim);
 
-        const gripDishGeo = new THREE.CylinderGeometry(0.66, 0.66, 0.06, 48);
+        const gripDishGeo = new THREE.CylinderGeometry(0.64, 0.64, 0.06, 48);
         const gripDish = new THREE.Mesh(gripDishGeo, capMaterial);
         gripDish.rotation.x = Math.PI / 2;
         gripDish.position.z = flip ? -0.06 : 0.06;
