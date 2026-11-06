@@ -554,9 +554,19 @@ window.addEventListener('resize', () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
 });
 
+let isTabActive = true;
+document.addEventListener('visibilitychange', () => {
+    isTabActive = !document.hidden;
+    if (isTabActive) {
+        lastTime = performance.now();
+        requestAnimationFrame(animate);
+    }
+});
+
 let lastTime = performance.now();
 
 function animate(currentTime) {
+    if (!isTabActive) return;
     requestAnimationFrame(animate);
 
     const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
