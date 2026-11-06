@@ -200,14 +200,15 @@ function buildFallbackModel() {
 
     const bodyGeometry = new THREE.ExtrudeGeometry(spinnerShape, {
         steps: 1,
-        depth: 0.44,
+        depth: 0.46,
         bevelEnabled: true,
-        bevelThickness: 0.08,
-        bevelSize: 0.08,
-        bevelSegments: 5,
-        curveSegments: 36
+        bevelThickness: 0.1,
+        bevelSize: 0.1,
+        bevelSegments: 6,
+        curveSegments: 64
     });
     bodyGeometry.center();
+    bodyGeometry.computeVertexNormals();
 
     const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
     bodyMesh.castShadow = true;
