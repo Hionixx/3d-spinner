@@ -573,6 +573,8 @@ window.addEventListener('keydown', (e) => {
     } else if (key === ' ' || key === 'Spacebar') {
         const boost = (Math.random() > 0.5 ? 1 : -1) * (40 + Math.random() * 20);
         angularVelocity = boost;
+    } else if (key === 'b' || key === 'B') {
+        angularVelocity = 0;
     } else if (key === 'ArrowLeft') {
         spinnerGroup.rotation.y -= 0.1;
     } else if (key === 'ArrowRight') {
