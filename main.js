@@ -95,10 +95,11 @@ spinnerGroup.add(rotor);
 
 const bodyMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x2196f3,
-    roughness: 0.22,
-    metalness: 0.1,
-    clearcoat: 0.85,
-    clearcoatRoughness: 0.12
+    roughness: 0.2,
+    metalness: 0.08,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.1,
+    reflectivity: 0.9
 });
 
 const weightsMaterial = new THREE.MeshStandardMaterial({
