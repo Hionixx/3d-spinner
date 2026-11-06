@@ -560,7 +560,8 @@ function animate(currentTime) {
     if (!isDraggingSpinner) {
         if (Math.abs(angularVelocity) > 0.0001) {
             rotor.rotation.z += angularVelocity * dt;
-            const damping = Math.pow(0.993, dt * 60);
+            const airFactor = 0.005 + 0.00012 * Math.abs(angularVelocity);
+            const damping = Math.max(0, 1 - airFactor * (dt * 60));
             angularVelocity *= damping;
         } else {
             angularVelocity = 0;
